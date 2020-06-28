@@ -139,3 +139,15 @@ class PostAdminForm(PostAdminFormBase):
                 self.initial["main_image_thumbnail"] = self.app_config.app_data["config"].get(
                     "default_image_thumbnail"
                 )
+
+class PopularEntriesForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(PopularEntriesForm, self).__init__(*args, **kwargs)
+        self.fields['tags'].widget = TagAutoSuggest('taggit.Tag')
+
+    class Media:
+        css = {
+            'all': ('%sdjangocms_blog/css/%s' % (
+                settings.STATIC_URL, 'djangocms_blog_admin.css'
+            ),)
+        }

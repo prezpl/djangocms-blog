@@ -273,6 +273,8 @@ class Post(KnockerModel, BlogMetaMixin, TranslatableModel):
     tags = TaggableManager(blank=True, related_name="djangocms_blog_tags")
 
     related = SortedManyToManyField("self", verbose_name=_("Related Posts"), blank=True, symmetrical=False)
+    views = models.IntegerField(default=0)
+    feature = models.BooleanField(_('feature'), default=False)
 
     _metadata = {
         "title": "get_title",
@@ -313,6 +315,10 @@ class Post(KnockerModel, BlogMetaMixin, TranslatableModel):
     def __str__(self):
         default = gettext("Post (no translation)")
         return self.safe_translation_getter("title", any_language=True, default=default)
+
+    def incrementViewCount(self):
+        self.views += 1
+        self.save()
 
     @property
     def guid(self, language=None):
@@ -468,6 +474,19 @@ class Post(KnockerModel, BlogMetaMixin, TranslatableModel):
             post=self.safe_translation_getter("slug", any_language=True),
         )
 
+class UserSeenPosts(models.Model):
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    agent = models.CharField(null=True, blank=True, max_length=2000)
+    timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+
+    def __str__(self):
+        return self.post.title
+
+    class Meta:
+        verbose_name = "View Count"
+        verbose_name_plural = "View Count"
+
 
 class BasePostPlugin(CMSPlugin):
     app_config = AppHookConfigField(BlogConfig, null=True, verbose_name=_("app. config"), blank=True)
@@ -509,6 +528,19 @@ class BasePostPlugin(CMSPlugin):
             or not getattr(request, "toolbar", False)
             or not request.toolbar.edit_mode_active
         ):
+            posts = posts.published(current_site=self.current_site)
+        return self.optimize(posts.all())
+
+    def post_queryset_popular(self, request=None, published_only=True):
+        language = get_language()
+        posts = Post.objects.order_by('-views')
+        if self.app_config:
+            posts = posts.namespace(self.app_config.namespace)
+        if self.current_site:
+            posts = posts.on_site(get_current_site(request))
+        posts = posts.active_translations(language_code=language)
+        if (published_only or not request or not getattr(request, 'toolbar', False) or
+            not request.toolbar.edit_mode_active):
             posts = posts.published(current_site=self.current_site)
         return self.optimize(posts.all())
 
@@ -603,3 +635,33 @@ def post_save_post(sender, instance, **kwargs):
     for language in instance.get_available_languages():
         key = instance.get_cache_key(language, "feed")
         cache.delete(key)
+
+# PopularPostPlugin
+class PopularPostsPlugin(BasePostPlugin):
+    popular_posts = models.IntegerField(_('articles'), default=get_setting('POPULAR_POSTS'),
+                                       help_text=_('The number of latests '
+                                                   'articles to be displayed.'))
+    tags = TaggableManager(_('filter by tag'), blank=True,
+                           help_text=_('Show only the blog articles tagged with chosen tags.'),
+                           related_name='djangocms_blog_latest_post_2')
+    categories = models.ManyToManyField('djangocms_blog.BlogCategory', blank=True,
+                                        verbose_name=_('filter by category'),
+                                        help_text=_('Show only the blog articles tagged '
+                                                    'with chosen categories.'))
+
+    def __str__(self):
+        return force_str(_('%s latest articles by tag') % self.popular_posts)
+
+    def copy_relations(self, oldinstance):
+        for tag in oldinstance.tags.all():
+            self.tags.add(tag)
+        for category in oldinstance.categories.all():
+            self.categories.add(category)
+
+    def get_posts(self, request, published_only=True):
+        posts = self.post_queryset_popular(request, published_only)
+        if self.tags.exists():
+            posts = posts.filter(tags__in=list(self.tags.all()))
+        if self.categories.exists():
+            posts = posts.filter(categories__in=list(self.categories.all()))
+        return self.optimize(posts.distinct())[:self.popular_posts]

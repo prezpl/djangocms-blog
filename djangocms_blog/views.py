@@ -12,7 +12,7 @@ from django.utils.translation import get_language
 from django.views.generic import DetailView, ListView
 from parler.views import TranslatableSlugMixin, ViewUrlMixin
 
-from .models import BlogCategory, Post
+from .models import BlogCategory, Post, UserSeenPosts
 from .settings import get_setting
 
 User = get_user_model()
@@ -89,6 +89,20 @@ class PostDetailView(TranslatableSlugMixin, BaseBlogView, DetailView):
 
     def get(self, *args, **kwargs):
         # submit object to cms to get corrent language switcher and selected category behavior
+        self.object = self.get_object()
+        x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
+        print(x_forwarded_for)
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+            agent = 'none'
+        else:
+            ip = self.request.META.get('REMOTE_ADDR')
+            agent = self.request.META['HTTP_USER_AGENT']
+        if UserSeenPosts.objects.filter(ip=ip, post=self.get_object()).exists():
+            pass
+        else:
+            self.object.incrementViewCount()
+            UserSeenPosts.objects.create(post=self.object, ip=ip, agent=agent)
         if hasattr(self.request, "toolbar"):
             self.request.toolbar.set_object(self.get_object())
         return super().get(*args, **kwargs)

@@ -19,7 +19,7 @@ from parler.admin import TranslatableAdmin
 
 from .cms_appconfig import BlogConfig
 from .forms import CategoryAdminForm, PostAdminForm
-from .models import BlogCategory, Post
+from .models import BlogCategory, Post, UserSeenPosts
 from .settings import get_setting
 
 signal_dict = {}
@@ -125,7 +125,7 @@ class PostAdmin(PlaceholderAdminMixin, FrontendEditableAdminMixin, ModelAppHookC
     if apps.is_installed("djangocms_blog.liveblog"):
         actions += ["enable_liveblog", "disable_liveblog"]
     _fieldsets = [
-        (None, {"fields": ["title", "subtitle", "slug", "publish", ["categories", "app_config"]]}),
+        (None, {"fields": ["title", "subtitle", "slug", "publish", "feature", "views", ["categories", "app_config"]]}),
         (None, {"fields": [[]]}),
         (
             _("Info"),
@@ -492,6 +492,11 @@ class BlogConfigAdmin(BaseAppHookConfig, TranslatableAdmin):
 
             menu_pool.clear(all=True)
         return super().save_model(request, obj, form, change)
+
+
+@admin.register(UserSeenPosts)
+class AuthorAdmin(admin.ModelAdmin):
+    pass
 
 
 admin.site.register(BlogCategory, BlogCategoryAdmin)

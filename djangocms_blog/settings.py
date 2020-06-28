@@ -52,6 +52,7 @@ def get_setting(name):
         "BLOG_URLCONF": getattr(settings, "BLOG_URLCONF", "djangocms_blog.urls"),
         "BLOG_PAGINATION": getattr(settings, "BLOG_PAGINATION", 10),
         "BLOG_LATEST_POSTS": getattr(settings, "BLOG_LATEST_POSTS", 5),
+        'BLOG_POPULAR_POSTS': getattr(settings, 'BLOG_POPULAR_POSTS', 5),
         "BLOG_POSTS_LIST_TRUNCWORDS_COUNT": getattr(settings, "BLOG_POSTS_LIST_TRUNCWORDS_COUNT", 100),
         "BLOG_META_DESCRIPTION_LENGTH": getattr(settings, "BLOG_META_DESCRIPTION_LENGTH", 320),
         "BLOG_META_TITLE_LENGTH": getattr(settings, "BLOG_META_TITLE_LENGTH", 70),
@@ -121,5 +122,10 @@ def get_setting(name):
         "BLOG_USE_FALLBACK_LANGUAGE_IN_URL": getattr(settings, "BLOG_USE_FALLBACK_LANGUAGE_IN_URL", False),
         "BLOG_WIZARD_CONTENT_PLUGIN": getattr(settings, "BLOG_WIZARD_CONTENT_PLUGIN", "TextPlugin"),
         "BLOG_WIZARD_CONTENT_PLUGIN_BODY": getattr(settings, "BLOG_WIZARD_CONTENT_PLUGIN_BODY", "body"),
+        'BLOG_POPULAR_ENTRIES_PLUGIN_NAME': getattr(
+            settings, 'BLOG_POPULAR_ENTRIES_PLUGIN_NAME', _('Popular Blog Articles')),
+        "BLOG_POPULAR_ENTRIES_PLUGIN_NAME_CACHED": getattr(
+            settings, "BLOG_POPULAR_ENTRIES_PLUGIN_NAME_CACHED", _("Popular Blog Articles - Cache")
+        ),
     }
     return default["BLOG_%s" % name]

@@ -6,8 +6,8 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.db import models
 from django.template.loader import select_template
 
-from .forms import AuthorPostsForm, BlogPluginForm, LatestEntriesForm
-from .models import AuthorEntriesPlugin, BlogCategory, GenericBlogPlugin, LatestPostsPlugin, Post
+from .forms import AuthorPostsForm, BlogPluginForm, LatestEntriesForm, PopularEntriesForm
+from .models import AuthorEntriesPlugin, BlogCategory, GenericBlogPlugin, LatestPostsPlugin, Post, PopularPostsPlugin
 from .settings import get_setting
 
 
@@ -199,3 +199,36 @@ class BlogArchivePlugin(BlogPlugin):
         qs = instance.post_queryset(context["request"])
         context["dates"] = Post.objects.get_months(queryset=qs.published())
         return context
+
+
+@plugin_pool.register_plugin
+class BlogPopularEntriesPlugin(BlogPlugin):
+    """
+    Non cached plugin which returns the latest posts taking into account the
+      user / toolbar state
+    """
+    name = get_setting('POPULAR_ENTRIES_PLUGIN_NAME')
+    model = PopularPostsPlugin
+    form = PopularEntriesForm
+    filter_horizontal = ('categories',)
+    fields = ['app_config', 'popular_posts', 'tags', 'categories'] + \
+        ['template_folder'] if len(get_setting('PLUGIN_TEMPLATE_FOLDERS')) > 1 else []
+    cache = False
+    base_render_template = 'popular_entries.html'
+
+    def render(self, context, instance, placeholder):
+        context = super(BlogPopularEntriesPlugin, self).render(context, instance, placeholder)
+        context['posts_list'] = instance.get_posts(context['request'], published_only=False)
+        context['TRUNCWORDS_COUNT'] = get_setting('POSTS_LIST_TRUNCWORDS_COUNT')
+        return context
+
+@plugin_pool.register_plugin
+class BlogPopularEntriesPluginCached(BlogPopularEntriesPlugin):
+    """
+    Return the latest published posts caching the result.
+    """
+
+    name = get_setting("POPULAR_ENTRIES_PLUGIN_NAME_CACHED")
+    cache = True
+
+
